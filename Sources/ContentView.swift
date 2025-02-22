@@ -45,7 +45,7 @@ struct ContentView: View {
             }
             
             // Row 5: Results (expands vertically)
-            ResultsView(photos: scanner.foundPhotos)
+            ResultsView(photos: scanner.foundPhotos, baseDirectory: photosPath)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Row 6: Status Line

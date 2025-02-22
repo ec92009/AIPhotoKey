@@ -2,30 +2,56 @@ import SwiftUI
 
 public struct ResultsView: View {
     let photos: [String]
+    let baseDirectory: String
+    @State private var selectedPhoto: String?
+    @State private var showingPreview = false
+    @State private var previewPosition: CGPoint = .zero
     
-    public init(photos: [String] = []) {
+    public init(photos: [String] = [], baseDirectory: String = "~/Photos") {
         self.photos = photos
+        self.baseDirectory = (baseDirectory as NSString).expandingTildeInPath
+    }
+    
+    private func getFullPath(for photo: String) -> String {
+        return (baseDirectory as NSString).appendingPathComponent(photo)
     }
     
     public var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 4) {
-                ForEach(photos, id: \.self) { photo in
-                    Text(photo)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.primary)
+        ZStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 4) {
+                    ForEach(photos, id: \.self) { photo in
+                        Text(photo)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.primary)
+                            .onTapGesture { location in
+                                if selectedPhoto == photo {
+                                    selectedPhoto = nil
+                                    showingPreview = false
+                                } else {
+                                    selectedPhoto = photo
+                                    showingPreview = true
+                                }
+                            }
+                    }
+                    
+                    if photos.isEmpty {
+                        Text("No photos found")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
-                
-                if photos.isEmpty {
-                    Text("No photos found")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                .padding()
             }
-            .padding()
+            .background(.quaternary)
+            
+            if showingPreview, let photo = selectedPhoto {
+                PhotoPreviewView(imagePath: getFullPath(for: photo), isVisible: $showingPreview)
+                    .position(x: NSScreen.main?.frame.width ?? 800 / 2,
+                             y: NSScreen.main?.frame.height ?? 600 / 2)
+            }
         }
-        .background(.quaternary)
     }
 }
 
