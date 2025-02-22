@@ -1,0 +1,25 @@
+name: AIPhotoKey
+options:
+  bundleIdPrefix: com.aiphotokey
+  deploymentTarget:
+    macOS: 13.0
+targets:
+  AIPhotoKey:
+    type: application
+    platform: macOS
+    sources: [Sources]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "13.0"
+    settings:
+      base:
+        DEVELOPMENT_TEAM: "" # You'll need to set this to your team ID
+    preBuildScripts:
+      - name: "Increment Build Number"
+        script: |
+          buildNumber=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "${INFOPLIST_FILE}")
+          buildNumber=$(($buildNumber + 1))
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "${INFOPLIST_FILE}"
