@@ -1,10 +1,15 @@
 import SwiftUI
 
-struct PhotoPreviewView: View {
+public struct PhotoPreviewView: View {
     let imagePath: String
     @Binding var isVisible: Bool
     
-    var body: some View {
+    public init(imagePath: String, isVisible: Binding<Bool>) {
+        self.imagePath = imagePath
+        self._isVisible = isVisible
+    }
+    
+    public var body: some View {
         if let nsImage = NSImage(contentsOfFile: imagePath) {
             Image(nsImage: nsImage)
                 .resizable()
