@@ -76,11 +76,18 @@ public struct ResultsView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(photos, id: \.self) { photo in
-                        ClickableText(text: photo) {
+                        Button(action: {
                             handlePhotoClick(photo)
+                        }) {
+                            if let image = NSImage(contentsOf: URL(fileURLWithPath: getFullPath(for: photo))) {
+                                Image(nsImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 48, height: 48)
+                            } else {
+                                Text("N/A")
+                            }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 2)
                     }
                     
                     if photos.isEmpty {

@@ -7,15 +7,16 @@ struct PreviewWindow: View {
     
     var body: some View {
         VStack {
-            Text("Preview Window")
-                .font(.title)
-            Text(imagePath)
-                .font(.caption)
-            Rectangle()
-                .fill(.red)
-                .frame(width: 400, height: 400)
+            if let nsImage = NSImage(contentsOf: URL(fileURLWithPath: imagePath)) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 128, height: 128)
+            } else {
+                Text("Thumbnail not available")
+            }
         }
-        .frame(width: 500, height: 500)
+        .frame(width: 128, height: 128)
         .background(Color(.windowBackgroundColor))
     }
 }
