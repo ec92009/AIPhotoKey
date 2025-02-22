@@ -6,6 +6,7 @@ struct ClickableText: NSViewRepresentable {
     let action: () -> Void
     
     func makeNSView(context: Context) -> NSButton {
+        print("Creating button for: \(text)")
         let button = NSButton(title: text, target: context.coordinator, action: #selector(Coordinator.handleClick))
         button.bezelStyle = .inline
         button.isBordered = false
@@ -29,6 +30,7 @@ struct ClickableText: NSViewRepresentable {
         }
         
         @objc func handleClick() {
+            print("Button clicked!")
             action()
         }
     }
@@ -41,6 +43,7 @@ public struct ResultsView: View {
     @State private var showingPreview = false
     
     public init(photos: [String] = [], baseDirectory: String = "~/Photos") {
+        print("ResultsView init with \(photos.count) photos")
         self.photos = photos
         self.baseDirectory = (baseDirectory as NSString).expandingTildeInPath
         print("Base directory expanded to: \(self.baseDirectory)")
@@ -48,21 +51,24 @@ public struct ResultsView: View {
     
     private func getFullPath(for photo: String) -> String {
         let fullPath = (baseDirectory as NSString).appendingPathComponent(photo)
-        print("Attempting to load image from: \(fullPath)")
+        print("Full path for \(photo): \(fullPath)")
         return fullPath
     }
     
     private func handlePhotoClick(_ photo: String) {
-        print("Clicked on photo: \(photo)")
-        if selectedPhoto == photo {
-            print("Hiding preview for \(photo)")
-            selectedPhoto = nil
-            showingPreview = false
-        } else {
-            print("Showing preview for \(photo)")
-            selectedPhoto = photo
+        print("handlePhotoClick: \(photo)")
+        print("Current state - selected: \(selectedPhoto ?? "none"), showing: \(showingPreview)")
+        
+        // First update selected photo
+        selectedPhoto = photo
+        
+        // Then handle preview visibility
+        if !showingPreview {
+            print("Showing preview")
             showingPreview = true
         }
+        
+        print("New state - selected: \(selectedPhoto ?? "none"), showing: \(showingPreview)")
     }
     
     public var body: some View {

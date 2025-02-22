@@ -100,7 +100,7 @@ public class PhotoScanner: ObservableObject {
                         }
                         
                         // Simulate processing time
-                        Thread.sleep(forTimeInterval: 0.02)
+                        Thread.sleep(forTimeInterval: 0.05)
                         
                         if self.foundPhotos.count >= 3000 {
                             break

@@ -1,87 +1,128 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
-class PreviewWindowController: NSWindowController, NSWindowDelegate {
-    private let onClose: () -> Void
-    
-    init(imagePath: String, onClose: @escaping () -> Void) {
-        self.onClose = onClose
-        
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 512, height: 512),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = (imagePath as NSString).lastPathComponent
-        window.center()
-        
-        let hostingView = NSHostingView(rootView: 
-            PhotoPreviewContent(imagePath: imagePath)
-        )
-        window.contentView = hostingView
-        
-        super.init(window: window)
-        window.delegate = self
-    }
-    
-    required init?(coder: NSCoder) {
-        self.onClose = {}
-        super.init(coder: coder)
-    }
-    
-    func windowWillClose(_ notification: Notification) {
-        onClose()
-    }
-}
-
-private struct PhotoPreviewContent: View {
+struct PreviewWindow: View {
     let imagePath: String
     
     var body: some View {
         VStack {
-            if let nsImage = NSImage(contentsOfFile: imagePath) {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 512, maxHeight: 512)
-            } else {
-                Text("Unable to load image")
-                    .foregroundColor(.red)
-                    .padding()
-            }
-            Text((imagePath as NSString).lastPathComponent)
-                .font(.system(.caption, design: .monospaced))
-                .padding(.bottom)
+            Text("Preview Window")
+                .font(.title)
+            Text(imagePath)
+                .font(.caption)
+            Rectangle()
+                .fill(.red)
+                .frame(width: 400, height: 400)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: 500, height: 500)
         .background(Color(.windowBackgroundColor))
+    }
+}
+
+class PreviewWindowController {
+    static let shared = PreviewWindowController()
+    private var previewWindow: NSWindow?
+    
+    private init() {
+        print("PreviewWindowController initialized")
+    }
+    
+    public func showPreview(imagePath: String) {
+        print("\n=== Starting Preview Generation ===")
+        print("ShowPreview called with path: \(imagePath)")
+        
+        // Close existing window if any
+        if let existing = previewWindow {
+            print("Closing existing window")
+            existing.close()
+            previewWindow = nil
+        }
+        
+        print("Creating new window")
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 500),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        print("Configuring window")
+        window.title = "Photo Preview"
+        window.isReleasedWhenClosed = false
+        window.center()
+        
+        print("Creating SwiftUI view")
+        let previewView = PreviewWindow(imagePath: imagePath)
+        window.contentView = NSHostingView(rootView: previewView)
+        
+        print("Making window visible")
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+        
+        print("Storing window reference")
+        self.previewWindow = window
+        
+        // Debug window state
+        print("Window state:")
+        print(" - Is visible: \(window.isVisible)")
+        print(" - Is key: \(window.isKeyWindow)")
+        print(" - Is main: \(window.isMainWindow)")
+        print(" - Frame: \(window.frame)")
+        print(" - Screen: \(String(describing: window.screen))")
+    }
+    
+    public func closePreview() {
+        print("Closing preview window")
+        if let window = previewWindow {
+            print(" - Window exists, closing it")
+            window.close()
+        } else {
+            print(" - No window to close")
+        }
+        previewWindow = nil
     }
 }
 
 public struct PhotoPreviewView: View {
     let imagePath: String
     @Binding var isVisible: Bool
-    @State private var windowController: PreviewWindowController?
     
     public init(imagePath: String, isVisible: Binding<Bool>) {
+        print("PhotoPreviewView init: \(imagePath)")
+        print("Initial isVisible value: \(isVisible.wrappedValue)")
         self.imagePath = imagePath
         self._isVisible = isVisible
     }
     
     public var body: some View {
-        Color.clear
-            .onChange(of: isVisible) { newValue in
-                if newValue {
-                    windowController = PreviewWindowController(imagePath: imagePath) {
-                        isVisible = false
-                        windowController = nil
+        EmptyView()
+            .onAppear {
+                print("\n=== PhotoPreviewView appeared ===")
+                print("isVisible in onAppear: \(isVisible)")
+                if isVisible {
+                    print("Showing preview window")
+                    DispatchQueue.main.async {
+                        PreviewWindowController.shared.showPreview(imagePath: imagePath)
                     }
-                    windowController?.showWindow(nil)
-                } else {
-                    windowController?.close()
-                    windowController = nil
                 }
+            }
+            .onChange(of: isVisible) { newValue in
+                print("\n=== isVisible changed to: \(newValue) ===")
+                if newValue {
+                    print("Showing preview window")
+                    DispatchQueue.main.async {
+                        PreviewWindowController.shared.showPreview(imagePath: imagePath)
+                    }
+                } else {
+                    print("Closing preview window")
+                    PreviewWindowController.shared.closePreview()
+                }
+            }
+            .onDisappear {
+                print("\n=== PhotoPreviewView disappearing ===")
+                PreviewWindowController.shared.closePreview()
             }
     }
 }
