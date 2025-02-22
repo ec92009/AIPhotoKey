@@ -1,19 +1,68 @@
 import SwiftUI
+import AppKit
+
+struct ClickableText: NSViewRepresentable {
+    let text: String
+    let action: () -> Void
+    
+    func makeNSView(context: Context) -> NSButton {
+        let button = NSButton(title: text, target: context.coordinator, action: #selector(Coordinator.handleClick))
+        button.bezelStyle = .inline
+        button.isBordered = false
+        button.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        return button
+    }
+    
+    func updateNSView(_ nsView: NSButton, context: Context) {
+        nsView.title = text
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+    
+    class Coordinator: NSObject {
+        let action: () -> Void
+        
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+        
+        @objc func handleClick() {
+            action()
+        }
+    }
+}
 
 public struct ResultsView: View {
     let photos: [String]
     let baseDirectory: String
     @State private var selectedPhoto: String?
     @State private var showingPreview = false
-    @State private var previewPosition: CGPoint = .zero
     
     public init(photos: [String] = [], baseDirectory: String = "~/Photos") {
         self.photos = photos
         self.baseDirectory = (baseDirectory as NSString).expandingTildeInPath
+        print("Base directory expanded to: \(self.baseDirectory)")
     }
     
     private func getFullPath(for photo: String) -> String {
-        return (baseDirectory as NSString).appendingPathComponent(photo)
+        let fullPath = (baseDirectory as NSString).appendingPathComponent(photo)
+        print("Attempting to load image from: \(fullPath)")
+        return fullPath
+    }
+    
+    private func handlePhotoClick(_ photo: String) {
+        print("Clicked on photo: \(photo)")
+        if selectedPhoto == photo {
+            print("Hiding preview for \(photo)")
+            selectedPhoto = nil
+            showingPreview = false
+        } else {
+            print("Showing preview for \(photo)")
+            selectedPhoto = photo
+            showingPreview = true
+        }
     }
     
     public var body: some View {
@@ -21,18 +70,11 @@ public struct ResultsView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(photos, id: \.self) { photo in
-                        Text(photo)
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.primary)
-                            .onTapGesture { location in
-                                if selectedPhoto == photo {
-                                    selectedPhoto = nil
-                                    showingPreview = false
-                                } else {
-                                    selectedPhoto = photo
-                                    showingPreview = true
-                                }
-                            }
+                        ClickableText(text: photo) {
+                            handlePhotoClick(photo)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 2)
                     }
                     
                     if photos.isEmpty {
@@ -48,8 +90,6 @@ public struct ResultsView: View {
             
             if showingPreview, let photo = selectedPhoto {
                 PhotoPreviewView(imagePath: getFullPath(for: photo), isVisible: $showingPreview)
-                    .position(x: NSScreen.main?.frame.width ?? 800 / 2,
-                             y: NSScreen.main?.frame.height ?? 600 / 2)
             }
         }
     }
