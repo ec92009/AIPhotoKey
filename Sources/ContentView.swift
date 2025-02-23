@@ -1,10 +1,18 @@
 import SwiftUI
 import AppKit
 
+class SessionPreferences: ObservableObject {
+    static let shared = SessionPreferences()
+    
+    @AppStorage("photosSourceFolder") var photosSourceFolder: String = ""
+    @AppStorage("modelChoice") var modelChoice: String = ""
+    @AppStorage("confidenceSetting") var confidenceSetting: Double = 0.9
+    
+    private init() {}
+}
+
 struct ContentView: View {
-    @State private var photosPath: String = "~/Photos"
-    @State private var selectedModel: String = "Model A"
-    @State private var confidence: Double = 90
+    @StateObject private var sessionPrefs = SessionPreferences.shared
     @State private var scanState: ScanState = .notStarted
     @StateObject private var scanner = PhotoScanner()
     
@@ -13,17 +21,17 @@ struct ContentView: View {
             // Row 1: Title and version
             TitleView()
             
-            // Row 2: Photos Source
-            PhotosSourceView(photosPath: $photosPath)
+            // Row 3: Photos Source
+            PhotosSourceView(photosPath: $sessionPrefs.photosSourceFolder)
             
-            // Row 3: Model Selection and Confidence
+            // Row 4: Model Selection and Confidence
             HStack(spacing: 20) {
-                ModelSelectionView(selectedModel: $selectedModel)
+                ModelSelectionView(selectedModel: $sessionPrefs.modelChoice)
                 Spacer()
-                ConfidenceSliderView(confidence: $confidence)
+                ConfidenceSliderView(confidence: $sessionPrefs.confidenceSetting)
             }
             
-            // Row 4: Control Buttons
+            // Row 5: Control Buttons
             ControlButtonsView(scanState: $scanState) {
                 scanner.clearDatabase()
             }
@@ -35,7 +43,7 @@ struct ContentView: View {
                     if scanner.isScanning {
                         scanner.resumeScan()
                     } else {
-                        scanner.startScan(path: photosPath)
+                        scanner.startScan(path: sessionPrefs.photosSourceFolder)
                     }
                 case .paused:
                     scanner.stopScan()
@@ -44,11 +52,11 @@ struct ContentView: View {
                 }
             }
             
-            // Row 5: Results (expands vertically)
-            ResultsView(photos: scanner.foundPhotos, baseDirectory: photosPath)
+            // Row 6: Results (expands vertically)
+            ResultsView(photos: scanner.foundPhotos, baseDirectory: sessionPrefs.photosSourceFolder)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
-            // Row 6: Status Line
+            // Row 7: Status Line
             StatusLineView(message: scanner.statusMessage)
         }
         .padding()
