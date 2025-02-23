@@ -19,19 +19,33 @@ AIPhotoKey is a powerful macOS application that revolutionizes photo organizatio
 - Adjustable confidence threshold (0-100%)
 - Intelligent photo categorization
 - Fast processing with batch operations
+- Preview thumbnails with confidence scores
+- Detailed image metadata display
 
 ### User Interface
 - Modern SwiftUI interface with native macOS look and feel
 - Interactive controls for scanning and analysis
-- Real-time results display
+- Real-time results display with thumbnails
 - Status line for operation feedback
 - Easy directory selection with native folder picker
 - Clear database option for fresh starts
+- Popup view with 512x512 thumbnails showing:
+  - High-quality image preview
+  - Confidence percentage
+  - File name
+
+### Session Management
+- Persistent session preferences across app launches:
+  - Last used photos source folder
+  - Selected AI model
+  - Confidence threshold setting
+- Preferences automatically saved using macOS UserDefaults
+- Easy preference management via defaults command-line tool
 
 ## Getting Started
 
 ### Prerequisites
-- macOS 11.0 or later
+- macOS 13.0 or later
 - Xcode 14.0 or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) for project generation
 
@@ -53,33 +67,42 @@ AIPhotoKey is a powerful macOS application that revolutionizes photo organizatio
    open AIPhotoKey.xcodeproj
    ```
 
-4. Build and run the application in Xcode
+### Managing Preferences
 
-## Project Structure
+You can view or modify app preferences using the defaults command:
 
-### Core Components
-- `PhotoScanner`: Core scanning engine for recursive photo discovery
-- `ContentView`: Main application view orchestrating all components
-- `ControlButtonsView`: UI controls for scanning operations
-- `ResultsView`: Display of scanned photo results
+```bash
+# View all preferences
+defaults read com.aiphotokey.AIPhotoKey
 
-### UI Components
-- `TitleView`: Application header and version display
-- `PhotosSourceView`: Directory selection interface
-- `ModelSelectionView`: AI model selection interface
-- `ConfidenceSliderView`: Confidence threshold adjustment
-- `StatusLineView`: Operation status display
-- `FolderPicker`: Native macOS folder selection
+# View photos source folder
+defaults read com.aiphotokey.AIPhotoKey photosSourceFolder
 
-## Usage
+# Set photos source folder
+defaults write com.aiphotokey.AIPhotoKey photosSourceFolder "/path/to/photos"
 
-1. Launch AIPhotoKey
-2. Select your photos directory using the folder picker
-3. Choose your preferred AI model
-4. Adjust the confidence threshold as needed
-5. Click "Scan" to begin processing
-6. Use the pause/resume button to control scanning
-7. View results in real-time as photos are processed
+# Reset all preferences
+defaults delete com.aiphotokey.AIPhotoKey
+```
+
+## Current State
+
+The application is fully functional with the following key features implemented:
+- Complete photo scanning system with pause/resume capability
+- AI model integration with adjustable confidence settings
+- Persistent session preferences
+- Modern UI with thumbnail previews and detailed image information
+- Real-time scanning status updates
+- Comprehensive error handling and user feedback
+
+## Next Steps
+
+Planned improvements include:
+- Additional AI models for enhanced photo analysis
+- Batch processing optimization
+- Advanced filtering and search capabilities
+- Export functionality for analysis results
+- Integration with Photos.app and other image management tools
 
 ## Contributing
 
