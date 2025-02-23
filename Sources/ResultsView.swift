@@ -1,6 +1,13 @@
 import SwiftUI
 import AppKit
 
+// Added extension to provide a 'description' property for NSSize (alias for CGSize)
+extension NSSize {
+    var description: String {
+        return "(\(width), \(height))"
+    }
+}
+
 public struct ResultsView: View {
     let photos: [String]
     let baseDirectory: String
@@ -95,8 +102,12 @@ struct PhotoDetailView: View {
             } else {
                 Text("Image not available")
             }
+            HStack {
             Text("Filename: \((photo as NSString).lastPathComponent)")
             Text("Confidence: \(Int(confidence))%")
+            Text("Original Size: \(NSImage(contentsOf: URL(fileURLWithPath: fullPath))?.size.description ?? "N/A")")
+
+            }
             Button("Close") {
                 dismiss()
             }
