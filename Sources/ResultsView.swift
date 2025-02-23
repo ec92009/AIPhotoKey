@@ -1,46 +1,12 @@
 import SwiftUI
 import AppKit
 
-struct ClickableText: NSViewRepresentable {
-    let text: String
-    let action: () -> Void
-    
-    func makeNSView(context: Context) -> NSButton {
-        print("Creating button for: \(text)")
-        let button = NSButton(title: text, target: context.coordinator, action: #selector(Coordinator.handleClick))
-        button.bezelStyle = .inline
-        button.isBordered = false
-        button.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        return button
-    }
-    
-    func updateNSView(_ nsView: NSButton, context: Context) {
-        nsView.title = text
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-    
-    class Coordinator: NSObject {
-        let action: () -> Void
-        
-        init(action: @escaping () -> Void) {
-            self.action = action
-        }
-        
-        @objc func handleClick() {
-            print("Button clicked!")
-            action()
-        }
-    }
-}
-
 public struct ResultsView: View {
     let photos: [String]
     let baseDirectory: String
     @State private var selectedPhoto: String?
-    @State private var showingPreview = false
+    @State private var showingDetail = false
+    @State private var selectedConfidence: Double = 95
     
     public init(photos: [String] = [], baseDirectory: String = "~/Photos") {
         print("ResultsView init with \(photos.count) photos")
@@ -57,18 +23,12 @@ public struct ResultsView: View {
     
     private func handlePhotoClick(_ photo: String) {
         print("handlePhotoClick: \(photo)")
-        print("Current state - selected: \(selectedPhoto ?? "none"), showing: \(showingPreview)")
+        print("Current state - selected: \(selectedPhoto ?? "none")")
         
-        // First update selected photo
         selectedPhoto = photo
-        
-        // Then handle preview visibility
-        if !showingPreview {
-            print("Showing preview")
-            showingPreview = true
-        }
-        
-        print("New state - selected: \(selectedPhoto ?? "none"), showing: \(showingPreview)")
+        selectedConfidence = 95 // dummy confidence value
+        showingDetail = true
+        print("Showing details: selected: \(selectedPhoto ?? "none"), showing: \(showingDetail)")
     }
     
     public var body: some View {
@@ -100,9 +60,10 @@ public struct ResultsView: View {
                 .padding()
             }
             .background(.quaternary)
-            
-            if showingPreview, let photo = selectedPhoto {
-                PhotoPreviewView(imagePath: getFullPath(for: photo), isVisible: $showingPreview)
+        }
+        .sheet(isPresented: $showingDetail) {
+            if let photo = selectedPhoto {
+                PhotoDetailView(photo: photo, confidence: selectedConfidence)
             }
         }
     }
@@ -115,4 +76,21 @@ public struct ResultsView: View {
         "raw/DSC0001.CR2"
     ])
     .frame(height: 300)
+}
+
+struct PhotoDetailView: View {
+    let photo: String
+    let confidence: Double
+    @Environment(\.dismiss) var dismiss
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Filename: \((photo as NSString).lastPathComponent)")
+            Text("Confidence: \(Int(confidence))%")
+            Button("Close") {
+                dismiss()
+            }
+        }
+        .padding()
+        .frame(minWidth: 200, minHeight: 150)
+    }
 }
