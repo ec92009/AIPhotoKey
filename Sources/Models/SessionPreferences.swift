@@ -11,12 +11,8 @@ public class SessionPreferences: ObservableObject {
         }
     }
     
-<<<<<<< Updated upstream:Sources/Models/SessionPreferences.swift
     // Store model choice as raw value string since AppStorage doesn't directly support enums
-    @AppStorage("modelChoice", store: UserDefaults.standard) private var modelChoiceRaw: String = AIModel.mobilenetV2.rawValue {
-=======
-    @AppStorage("modelChoice", store: UserDefaults.standard) public var modelChoice: AIModel = .mobilenetV1 {
->>>>>>> Stashed changes:Sources/SessionPreferences.swift
+    @AppStorage("modelChoice", store: UserDefaults.standard) private var modelChoiceRaw: String = AIModel.mobilenetV1.rawValue {
         didSet {
             print("modelChoice updated to: \(modelChoiceRaw)")
         }
@@ -25,7 +21,7 @@ public class SessionPreferences: ObservableObject {
     // Public computed property to handle conversion between String and AIModel
     public var modelChoice: AIModel {
         get {
-            AIModel(rawValue: modelChoiceRaw) ?? .mobilenetV2
+            AIModel(rawValue: modelChoiceRaw) ?? .mobilenetV1
         }
         set {
             modelChoiceRaw = newValue.rawValue
