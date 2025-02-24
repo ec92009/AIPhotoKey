@@ -36,18 +36,16 @@ targets:
     platform: macOS
     sources: 
       - path: Sources
-        excludes:
-          - "Models/**"
         includes:
-          - "**/*.swift"
+          - "*.swift"
           - "Info.plist"
           - "AIPhotoKey.entitlements"
       - path: Sources/Views
         includes:
-          - "**/*.swift"
+          - "*.swift"
       - path: Sources/Models
         includes:
-          - "**/*.swift"
+          - "*.swift"
     dependencies:
       - target: Models
     info:
