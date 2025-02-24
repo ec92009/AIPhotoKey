@@ -1,10 +1,11 @@
 import SwiftUI
 import AppKit
+import Foundation
 
 // Added extension to provide a 'description' property for NSSize (alias for CGSize)
 extension NSSize {
-    var description: String {
-        return "(\(width), \(height))"
+    var dimensionsString: String {
+        return "\(Int(width)) x \(Int(height))"
     }
 }
 
@@ -51,6 +52,8 @@ public struct ResultsView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: 48, height: 48)
+                                    .clipped()
+                                    .cornerRadius(6)
                             } else {
                                 Text("N/A")
                             }
@@ -90,30 +93,33 @@ struct PhotoDetailView: View {
     let confidence: Double
     let baseDirectory: String
     @Environment(\.dismiss) var dismiss
+    
     var body: some View {
         let fullPath = (baseDirectory as NSString).appendingPathComponent(photo)
         let nsImage = NSImage(contentsOf: URL(fileURLWithPath: fullPath))
-        VStack(spacing: 20) {
-            if let nsImage = nsImage {
-                Image(nsImage: nsImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 512, height: 512)
-            } else {
-                Text("Image not available")
+        ZStack {
+            VStack(spacing: 20) {
+                if let nsImage = nsImage {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 512, height: 512)
+                } else {
+                    Text("Image not available")
+                }
+                Text("Filename: \((photo as NSString).lastPathComponent)")
+                Text("Confidence: \(Int(confidence))%")
+                Text("Original Size: \(NSImage(contentsOf: URL(fileURLWithPath: fullPath))?.size.dimensionsString ?? "N/A")")
+                Spacer()
             }
-            HStack {
-            Text("Filename: \((photo as NSString).lastPathComponent)")
-            Text("Confidence: \(Int(confidence))%")
-            Text("Original Size: \(NSImage(contentsOf: URL(fileURLWithPath: fullPath))?.size.description ?? "N/A")")
-
-            }
-            Button("Close") {
-                dismiss()
-            }
+            .padding()
+            .frame(minWidth: 200, minHeight: 150)
+            
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { dismiss() }
         }
-        .padding()
-        .frame(minWidth: 200, minHeight: 150)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

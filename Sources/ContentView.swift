@@ -1,16 +1,6 @@
 import SwiftUI
 import AppKit
 
-class SessionPreferences: ObservableObject {
-    static let shared = SessionPreferences()
-    
-    @AppStorage("photosSourceFolder") var photosSourceFolder: String = ""
-    @AppStorage("modelChoice") var modelChoice: String = ""
-    @AppStorage("confidenceSetting") var confidenceSetting: Double = 0.9
-    
-    private init() {}
-}
-
 struct ContentView: View {
     @StateObject private var sessionPrefs = SessionPreferences.shared
     @State private var scanState: ScanState = .notStarted
