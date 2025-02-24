@@ -1,20 +1,5 @@
 import SwiftUI
-
-public enum ScanState {
-    case notStarted
-    case scanning
-    case paused
-    case completed
-    
-    var buttonTitle: String {
-        switch self {
-        case .notStarted: return "Scan"
-        case .scanning: return "Pause"
-        case .paused: return "Resume"
-        case .completed: return "Scan Again"
-        }
-    }
-}
+import Models
 
 public struct ControlButtonsView: View {
     @Binding var scanState: ScanState

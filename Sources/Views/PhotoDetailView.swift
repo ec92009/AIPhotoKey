@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Models
 
 struct PhotoDetailView: View {
     let model: PhotoDetailModel

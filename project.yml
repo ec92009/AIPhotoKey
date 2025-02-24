@@ -3,18 +3,50 @@ options:
   bundleIdPrefix: com.aiphotokey
   deploymentTarget:
     macOS: 13.0
+  CODE_SIGN_IDENTITY: "-"
+  CODE_SIGN_STYLE: Manual
+  DEVELOPMENT_TEAM: ""
+
 targets:
+  Models:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/Models
+        includes:
+          - "**/*.swift"
+          - AIModel.swift
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES
+        DEFINES_MODULE: YES
+        ENABLE_TESTABILITY: YES
+        CURRENT_PROJECT_VERSION: 1
+        DYLIB_CURRENT_VERSION: 1
+        DYLIB_COMPATIBILITY_VERSION: 1
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiphotokey.Models
+
   AIPhotoKey:
     type: application
     platform: macOS
     sources: 
       - path: Sources
+        excludes:
+          - "Models/**"
         includes:
           - "**/*.swift"
           - "Info.plist"
           - "Models/**/*.swift"
           - "ViewModels/**/*.swift"
           - "Views/**/*.swift"
+    dependencies:
+      - target: Models
     info:
       path: Sources/Info.plist
       properties:
@@ -23,10 +55,22 @@ targets:
         LSMinimumSystemVersion: "13.0"
     settings:
       base:
-        DEVELOPMENT_TEAM: "" # You'll need to set this to your team ID
+        ENABLE_HARDENED_RUNTIME: NO
+        PRODUCT_BUNDLE_IDENTIFIER: com.aiphotokey.AIPhotoKey
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        DEVELOPMENT_TEAM: ""
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        INFOPLIST_FILE: Sources/Info.plist
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.utilities"
+    entitlements:
+      path: Sources/AIPhotoKey.entitlements
     preBuildScripts:
       - name: "Increment Build Number"
         script: |
           buildNumber=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "${INFOPLIST_FILE}")
           buildNumber=$(($buildNumber + 1))
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "${INFOPLIST_FILE}"
+        outputFiles:
+          - $(INFOPLIST_FILE)

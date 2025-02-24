@@ -1,10 +1,15 @@
 import SwiftUI
 import AppKit
+import Models
 
 struct ContentView: View {
     @StateObject private var sessionPrefs = SessionPreferences.shared
     @State private var scanState: ScanState = .notStarted
     @StateObject private var scanner = PhotoScanner()
+    
+    init() {
+        print("ContentView initializing...")
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -51,6 +56,9 @@ struct ContentView: View {
         }
         .padding()
         .frame(minWidth: 600, minHeight: 400)
+        .onAppear {
+            print("Building ContentView body")
+        }
     }
 }
 

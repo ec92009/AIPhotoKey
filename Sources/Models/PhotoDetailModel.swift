@@ -1,20 +1,26 @@
 import SwiftUI
 import AppKit
 
-struct PhotoDetailModel {
-    let photo: String
-    let confidence: Double
-    let baseDirectory: String
+public struct PhotoDetailModel {
+    public let photo: String
+    public let confidence: Double
+    public let baseDirectory: String
     
-    var image: NSImage? {
+    public var image: NSImage? {
         NSImage(contentsOf: URL(fileURLWithPath: (baseDirectory as NSString).appendingPathComponent(photo)))
     }
     
-    var filename: String {
+    public var filename: String {
         (photo as NSString).lastPathComponent
     }
     
-    var size: String {
+    public var size: String {
         image?.size.dimensionsString ?? "N/A"
+    }
+    
+    public init(photo: String, confidence: Double, baseDirectory: String) {
+        self.photo = photo
+        self.confidence = confidence
+        self.baseDirectory = baseDirectory
     }
 }

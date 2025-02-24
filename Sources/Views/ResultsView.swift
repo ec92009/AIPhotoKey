@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Models
 
 extension NSSize {
     var dimensionsString: String {

@@ -1,4 +1,5 @@
 import SwiftUI
+import Models
 
 public class SessionPreferences: ObservableObject {
     public static let shared = SessionPreferences()
@@ -10,8 +11,12 @@ public class SessionPreferences: ObservableObject {
         }
     }
     
+<<<<<<< Updated upstream:Sources/Models/SessionPreferences.swift
     // Store model choice as raw value string since AppStorage doesn't directly support enums
     @AppStorage("modelChoice", store: UserDefaults.standard) private var modelChoiceRaw: String = AIModel.mobilenetV2.rawValue {
+=======
+    @AppStorage("modelChoice", store: UserDefaults.standard) public var modelChoice: AIModel = .mobilenetV1 {
+>>>>>>> Stashed changes:Sources/SessionPreferences.swift
         didSet {
             print("modelChoice updated to: \(modelChoiceRaw)")
         }
