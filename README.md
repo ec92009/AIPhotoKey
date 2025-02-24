@@ -29,8 +29,10 @@ AIPhotoKey is a powerful macOS application that revolutionizes photo organizatio
 - Status line for operation feedback
 - Easy directory selection with native folder picker
 - Clear database option for fresh starts
-- Popup view with 512x512 thumbnails showing:
-  - High-quality image preview
+- Interactive photo detail view:
+  - High-quality 512x512 image preview
+  - Click anywhere to dismiss
+  - Integer-based dimension display
   - Confidence percentage
   - File name
 
@@ -41,6 +43,23 @@ AIPhotoKey is a powerful macOS application that revolutionizes photo organizatio
   - Confidence threshold setting
 - Preferences automatically saved using macOS UserDefaults
 - Easy preference management via defaults command-line tool
+
+## Architecture
+
+AIPhotoKey follows the MVVM (Model-View-ViewModel) architecture pattern for clean separation of concerns:
+
+### Project Structure
+```
+Sources/
+├── Models/         # Data models and business logic
+├── Views/          # UI components and layouts
+└── ViewModels/     # State management and view logic
+```
+
+### Components
+- **Models**: Handle data structures and business logic
+- **Views**: Pure UI components with minimal logic
+- **ViewModels**: Manage state and business operations
 
 ## Getting Started
 
