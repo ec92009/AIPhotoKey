@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Models
 
 public struct PhotoDetailModel {
     public let photo: String
@@ -15,7 +16,10 @@ public struct PhotoDetailModel {
     }
     
     public var size: String {
-        image?.size.dimensionsString ?? "N/A"
+        if let imageSize = image?.size {
+            return (imageSize as CGSize).dimensionsString
+        }
+        return "N/A"
     }
     
     public init(photo: String, confidence: Double, baseDirectory: String) {
