@@ -7,7 +7,11 @@ targets:
   AIPhotoKey:
     type: application
     platform: macOS
-    sources: [Sources]
+    sources: 
+      - path: Sources
+        includes:
+          - "**/*.swift"
+          - "Info.plist"
     info:
       path: Sources/Info.plist
       properties:
