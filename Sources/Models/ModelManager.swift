@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 
 public class ModelManager: ObservableObject {
-    @Published public var selectedModel: AIModel = .mobileNetV1
+    @Published public var selectedModel: AIModel = .mobilenetV1
     @Published public var scanState: ScanState = .idle
     @Published public var progress: Double = 0.0
     @Published public var currentFile: String = ""
