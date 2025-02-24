@@ -1,11 +1,15 @@
 import SwiftUI
 
-struct ModelSelectionWindow: View {
+public struct ModelSelectionWindow: View {
     @Binding var selectedModel: AIModel
     @Environment(\.dismiss) private var dismiss
     @State private var downloadingModels: Set<AIModel> = []
     
-    var body: some View {
+    public init(selectedModel: Binding<AIModel>) {
+        self._selectedModel = selectedModel
+    }
+    
+    public var body: some View {
         VStack(spacing: 16) {
             // Header
             Text("Select AI Model")
