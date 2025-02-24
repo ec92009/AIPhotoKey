@@ -47,67 +47,29 @@ public struct ModelCapabilities {
 
 public struct ModelSelectionView: View {
     @Binding var selectedModel: AIModel
+    @State private var showingModelSelection = false
     
     public init(selectedModel: Binding<AIModel>) {
         self._selectedModel = selectedModel
     }
     
     public var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text("Model:")
-                    .font(.headline)
-                Picker("", selection: $selectedModel) {
-                    ForEach(AIModel.allCases, id: \.self) { model in
-                        Text(model.rawValue)
-                            .tag(model)
-                    }
-                }
-                .frame(width: 200)
-            }
+        HStack(spacing: 8) {
+            Text("Model:")
+                .font(.headline)
             
-            // Model details
-            VStack(alignment: .leading, spacing: 4) {
-                Text(selectedModel.description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                
-                HStack(spacing: 8) {
-                    // License info
-                    HStack {
-                        Image(systemName: "doc.text")
-                        Text(selectedModel.license)
-                    }
-                    .font(.caption2)
-                    
-                    Divider()
-                    
-                    // Capabilities
-                    HStack {
-                        Image(systemName: "cube")
-                        Text("\(selectedModel.capabilities.objectTypes) objects")
-                    }
-                    .font(.caption2)
-                    
-                    if selectedModel.capabilities.hasBoundingBoxes {
-                        HStack {
-                            Image(systemName: "rectangle.dashed")
-                            Text("Boxes")
-                        }
-                        .font(.caption2)
-                    }
-                    
-                    if selectedModel.capabilities.supportsRealTime {
-                        HStack {
-                            Image(systemName: "bolt")
-                            Text("Real-time")
-                        }
-                        .font(.caption2)
-                    }
+            Button {
+                showingModelSelection = true
+            } label: {
+                HStack {
+                    Text(selectedModel.rawValue)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption)
                 }
-                .foregroundStyle(.secondary)
             }
-            .padding(.leading, 4)
+            .sheet(isPresented: $showingModelSelection) {
+                ModelSelectionWindow(selectedModel: $selectedModel)
+            }
         }
     }
 }
@@ -116,6 +78,6 @@ struct ModelSelectionView_Previews: PreviewProvider {
     static var previews: some View {
         ModelSelectionView(selectedModel: .constant(.mobilenetV2))
             .padding()
-            .frame(width: 400, height: 200)
+            .frame(width: 400)
     }
 }
