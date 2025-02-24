@@ -15,7 +15,6 @@ targets:
       - path: Sources/Models
         includes:
           - "**/*.swift"
-          - AIModel.swift
     settings:
       base:
         APPLICATION_EXTENSION_API_ONLY: YES
@@ -42,9 +41,13 @@ targets:
         includes:
           - "**/*.swift"
           - "Info.plist"
-          - "Models/**/*.swift"
-          - "ViewModels/**/*.swift"
-          - "Views/**/*.swift"
+          - "AIPhotoKey.entitlements"
+      - path: Sources/Views
+        includes:
+          - "**/*.swift"
+      - path: Sources/Models
+        includes:
+          - "**/*.swift"
     dependencies:
       - target: Models
     info:
