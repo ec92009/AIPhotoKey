@@ -12,6 +12,9 @@ targets:
         includes:
           - "**/*.swift"
           - "Info.plist"
+          - "Models/**/*.swift"
+          - "ViewModels/**/*.swift"
+          - "Views/**/*.swift"
     info:
       path: Sources/Info.plist
       properties:
