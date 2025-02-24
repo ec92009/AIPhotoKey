@@ -43,7 +43,7 @@ struct ContentView: View {
             }
             
             // Row 6: Results (expands vertically)
-            ResultsView(photos: scanner.foundPhotos, baseDirectory: sessionPrefs.photosSourceFolder)
+            ResultsView(photos: scanner.foundPhotos, baseDirectory: sessionPrefs.photosSourceFolder, scanner: scanner)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             // Row 7: Status Line

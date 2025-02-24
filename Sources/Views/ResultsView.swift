@@ -9,16 +9,18 @@ extension NSSize {
 
 public struct ResultsView: View {
     @StateObject private var viewModel: ResultsViewModel
+    @ObservedObject var scanner: PhotoScanner
     
-    public init(photos: [String] = [], baseDirectory: String = "~/Photos") {
+    public init(photos: [String] = [], baseDirectory: String = "~/Photos", scanner: PhotoScanner) {
         _viewModel = StateObject(wrappedValue: ResultsViewModel(photos: photos, baseDirectory: baseDirectory))
+        self.scanner = scanner
     }
     
     public var body: some View {
         ZStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
-                    ForEach(viewModel.photos, id: \.self) { photo in
+                    ForEach(scanner.foundPhotos, id: \.self) { photo in
                         Button(action: {
                             viewModel.handlePhotoClick(photo)
                         }) {
@@ -35,7 +37,7 @@ public struct ResultsView: View {
                         }
                     }
                     
-                    if viewModel.photos.isEmpty {
+                    if scanner.foundPhotos.isEmpty {
                         Text("No photos found")
                             .font(.headline)
                             .foregroundStyle(.secondary)
@@ -63,6 +65,6 @@ public struct ResultsView: View {
         "vacation/beach.jpg",
         "family/birthday.png",
         "raw/DSC0001.CR2"
-    ])
+    ], scanner: PhotoScanner())
     .frame(height: 300)
 }
