@@ -1,6 +1,6 @@
 [project]
 name = "aiphotokey-backend"
-version = "6.0.0"
+version = "6.1.0"
 description = "FastAPI backend for AIPhotoKey"
 requires-python = ">=3.9"
 dependencies = [

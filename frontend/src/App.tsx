@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import packageJson from "../package.json";
 import {
   cancelCaptionJob,
   cancelScan,
@@ -58,6 +59,11 @@ function selectedCaptionModelSummary(models: CaptionModelOption[], modelId: stri
   return selected ? selected.description : "Choose the caption model for the next run.";
 }
 
+function formatAppVersion(version: string): string {
+  const [major = "0", minor = "0"] = version.split(".");
+  return `v${major}.${minor}`;
+}
+
 function ProgressBlock({
   label,
   current,
@@ -111,6 +117,7 @@ function ModelProgressBlock({
 }
 
 export default function App() {
+  const appVersion = formatAppVersion(packageJson.version);
   const [health, setHealth] = useState("checking");
   const [mode, setMode] = useState<WorkspaceMode>("detection");
   const [models, setModels] = useState<ModelOption[]>([]);
@@ -368,6 +375,7 @@ export default function App() {
           </p>
         </div>
         <div className="hero-meta">
+          <span className="badge">{appVersion}</span>
           <span className={`badge badge-${health}`}>API {health}</span>
           <span className="badge">Detector {summary.detector_status}</span>
         </div>
