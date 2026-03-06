@@ -15,12 +15,22 @@ def test_scan_and_summary(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("AIPHOTO_KEY_DB_PATH", str(data_dir / "catalog.db"))
 
     from app.main import app
+    from app import catalog as catalog_module
 
     image_dir = tmp_path / "images"
     image_dir.mkdir()
     for index in range(2):
         image = Image.new("RGB", (640, 480), color=(index * 40, 100, 140))
         image.save(image_dir / f"sample-{index}.jpg")
+
+    class StubDetector:
+        status = "metadata-only"
+        ready_message = "Metadata-only mode ready. Starting file-by-file scan."
+
+        def detect(self, image_path: Path, min_confidence: float):
+            return []
+
+    monkeypatch.setattr(catalog_module, "create_detector", lambda *args, **kwargs: StubDetector())
 
     client = TestClient(app)
     response = client.post(
@@ -98,3 +108,44 @@ def test_raw_image_loader_uses_rawpy(monkeypatch, tmp_path: Path):
     image_path.write_bytes(b"fake-raw")
     image = image_loader.load_image(image_path)
     assert image.size == (2, 2)
+
+
+def test_caption_generator_retries_for_broken_english(monkeypatch):
+    from app import captioning
+    from app.captioning import CaptionGenerator
+
+    generator = CaptionGenerator()
+    attempts = iter([
+        "arafed woman walking down a narrow street with a backpack",
+        "a woman walking down a narrow street with a backpack",
+    ])
+
+    monkeypatch.setattr(captioning, "load_image", lambda path: Image.new("RGB", (16, 16), color=(0, 0, 0)))
+    monkeypatch.setattr(generator, "_get_model", lambda model_id: (object(), object(), "cpu"))
+    monkeypatch.setattr(generator, "_generate_once", lambda *args, **kwargs: next(attempts))
+
+    caption, retried, issues = generator.generate(Path("sample.jpg"), "blip-base")
+
+    assert caption == "a woman walking down a narrow street with a backpack"
+    assert retried is True
+    assert issues == []
+
+
+def test_caption_generator_accepts_clean_caption_without_retry(monkeypatch):
+    from app import captioning
+    from app.captioning import CaptionGenerator
+
+    generator = CaptionGenerator()
+    monkeypatch.setattr(captioning, "load_image", lambda path: Image.new("RGB", (16, 16), color=(0, 0, 0)))
+    monkeypatch.setattr(generator, "_get_model", lambda model_id: (object(), object(), "cpu"))
+    monkeypatch.setattr(
+        generator,
+        "_generate_once",
+        lambda *args, **kwargs: "a man riding a bike down a city street",
+    )
+
+    caption, retried, issues = generator.generate(Path("sample.jpg"), "blip-base")
+
+    assert caption == "a man riding a bike down a city street"
+    assert retried is False
+    assert issues == []

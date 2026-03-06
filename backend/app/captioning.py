@@ -3,16 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import threading
 from typing import Dict, List, Optional
 from uuid import uuid4
 
-import torch
+from spellchecker import SpellChecker
 
 from .catalog import CatalogService
 from .database import get_connection
 from .image_loader import load_image
 from .models import CaptionJobResponse, CaptionRequest, CaptionRunResponse, SUPPORTED_CAPTION_MODELS
+
+try:
+    import torch
+except ImportError:  # pragma: no cover
+    torch = None
 
 try:
     from transformers import BlipForConditionalGeneration, BlipProcessor
@@ -22,27 +28,118 @@ except ImportError:  # pragma: no cover
 
 
 CAPTION_MODEL_MAP = {model["id"]: model for model in SUPPORTED_CAPTION_MODELS}
+CAPTION_RETRY_PROMPTS = [
+    None,
+    "a photograph of",
+    "a photo showing",
+]
+ALLOWED_CAPTION_TERMS = {
+    "backlit",
+    "backpack",
+    "closeup",
+    "close-up",
+    "downtown",
+    "nighttime",
+    "sidewalk",
+    "streetlight",
+    "streetlights",
+    "waterfront",
+}
 
 
 class CaptionGenerator:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._cache: Dict[str, tuple[object, object, str]] = {}
+        self._spellchecker = SpellChecker()
 
-    def generate(self, image_path: Path, model_id: str) -> str:
-        if BlipProcessor is None or BlipForConditionalGeneration is None:
+    def generate(self, image_path: Path, model_id: str) -> tuple[str, bool, List[str]]:
+        if BlipProcessor is None or BlipForConditionalGeneration is None or torch is None:
             raise RuntimeError("Captioning dependencies are not installed. Run `uv sync --extra caption`.")
 
         processor, model, device = self._get_model(model_id)
         image = load_image(image_path).convert("RGB")
-        inputs = processor(images=image, return_tensors="pt")
+        best_caption = ""
+        best_issues: List[str] = ["caption generation produced no output"]
+        best_score = -10**9
+        retried = False
+
+        for index, prompt in enumerate(CAPTION_RETRY_PROMPTS):
+            caption = self._generate_once(processor, model, device, image, prompt=prompt)
+            issues = self._caption_issues(caption)
+            score = self._caption_score(caption, issues)
+            if score > best_score:
+                best_caption = caption
+                best_issues = issues
+                best_score = score
+            if not issues:
+                return caption, index > 0, []
+            retried = retried or index > 0
+
+        return best_caption, retried, best_issues
+
+    def _generate_once(self, processor, model, device: str, image, prompt: Optional[str]) -> str:
+        if prompt:
+            inputs = processor(images=image, text=prompt, return_tensors="pt")
+        else:
+            inputs = processor(images=image, return_tensors="pt")
         if device != "cpu":
             inputs = {key: value.to(device) for key, value in inputs.items()}
-        output = model.generate(**inputs, max_new_tokens=48)
+        output = model.generate(
+            **inputs,
+            max_new_tokens=48,
+            num_beams=5,
+            repetition_penalty=1.15,
+        )
         return processor.decode(output[0], skip_special_tokens=True).strip()
 
+    def _caption_score(self, caption: str, issues: List[str]) -> int:
+        words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", caption.lower()) if token]
+        score = max(len(words), 1) * 10
+        score -= len(issues) * 50
+        score -= len(self._misspelled_words(words)) * 20
+        return score
+
+    def _caption_issues(self, caption: str) -> List[str]:
+        text = " ".join(caption.split())
+        issues: List[str] = []
+        words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", text.lower()) if token]
+
+        if not text:
+            return ["caption is empty"]
+        if "/" in text or "\\" in text:
+            issues.append("caption looks like a file path")
+        if re.search(r"\.(jpg|jpeg|png|webp|gif|heic|heif|dng|tif|tiff)\b", text.lower()):
+            issues.append("caption includes a filename")
+        if len(words) < 3:
+            issues.append("caption is too short")
+        if len(words) > 24:
+            issues.append("caption is too long")
+        if not any(word in {"a", "an", "the"} for word in words[:2]):
+            issues.append("caption does not start like a natural phrase")
+        has_connector = any(word in {"with", "in", "on", "at", "by", "near", "under"} for word in words)
+        has_action = any(word.endswith("ing") for word in words)
+        if not has_connector and not has_action:
+            issues.append("caption lacks connective or action words")
+
+        misspelled_words = self._misspelled_words(words)
+        if misspelled_words:
+            issues.append(f"possible misspellings: {', '.join(misspelled_words[:3])}")
+        return issues
+
+    def _misspelled_words(self, words: List[str]) -> List[str]:
+        filtered = [
+            word
+            for word in words
+            if len(word) > 3 and word not in ALLOWED_CAPTION_TERMS and not word.endswith("ing")
+        ]
+        if not filtered:
+            return []
+        unknown = self._spellchecker.unknown(filtered)
+        return sorted(unknown)
+
     def prepare_model(self, model_id: str, progress_callback=None) -> bool:
-        if BlipProcessor is None or BlipForConditionalGeneration is None:
+        if BlipProcessor is None or BlipForConditionalGeneration is None or torch is None:
             raise RuntimeError("Captioning dependencies are not installed. Run `uv sync --extra caption`.")
         with self._lock:
             cached = self._cache.get(model_id)
@@ -322,10 +419,19 @@ class CaptionManager:
                 )
                 try:
                     metadata = self.catalog._extract_metadata(image_path)
-                    caption_text = self.generator.generate(image_path, request.model_id)
+                    caption_text, retried, issues = self.generator.generate(image_path, request.model_id)
                 except Exception as exc:
                     warnings.append(f"Skipped caption for {image_path.name}: {exc}")
                     continue
+                if retried:
+                    if issues:
+                        warnings.append(
+                            f"Retried caption for {image_path.name}; kept best available text after quality check."
+                        )
+                    else:
+                        warnings.append(
+                            f"Retried caption for {image_path.name} after English quality check."
+                        )
 
                 photo_cursor = connection.execute(
                     """

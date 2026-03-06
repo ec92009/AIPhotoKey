@@ -14,7 +14,7 @@ resolution-markers = [
 
 [[package]]
 name = "aiphotokey-backend"
-version = "6.1.0"
+version = "6.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi", version = "0.128.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -32,6 +32,7 @@ ai = [
     { name = "ultralytics" },
 ]
 caption = [
+    { name = "pyspellchecker" },
     { name = "transformers" },
 ]
 dev = [
@@ -44,6 +45,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.116.0,<1.0.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0,<1.0.0" },
     { name = "pillow", specifier = ">=11.0.0,<12.0.0" },
+    { name = "pyspellchecker", marker = "extra == 'caption'", specifier = ">=0.8.3,<1.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0,<9.0.0" },
     { name = "python-multipart", specifier = ">=0.0.20,<1.0.0" },
     { name = "rawpy", specifier = ">=0.25.0,<1.0.0" },
@@ -2271,6 +2273,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f3/91/9c6ee907786a473bf81c5f53cf703ba0957b23ab84c264080fb5a450416f/pyparsing-3.3.2.tar.gz", hash = "sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc", size = 6851574, upload-time = "2026-01-21T03:57:59.36Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d", size = 122781, upload-time = "2026-01-21T03:57:55.912Z" },
+]
+
+[[package]]
+name = "pyspellchecker"
+version = "0.8.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/f4/870865239781117f75f788594c98fc3c65836ad9b93779550f369700187a/pyspellchecker-0.8.4.tar.gz", hash = "sha256:48cafa76d65c30ce4d81d0831938f25e8f34ede243c1cc6840014b0eb51ad629", size = 7238678, upload-time = "2025-11-30T00:18:39.415Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/79/2a6993dd02c537ae1344a693f20f9b556206a5385c398022fb66cb004b3a/pyspellchecker-0.8.4-py3-none-any.whl", hash = "sha256:20c53d119568011bbaef68608aceb956b888bcd9d563798f7770721a112b8255", size = 7236997, upload-time = "2025-11-30T00:18:37.411Z" },
 ]
 
 [[package]]
