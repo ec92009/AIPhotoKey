@@ -53,7 +53,12 @@ class CaptionGenerator:
         self._cache: Dict[str, tuple[object, object, str]] = {}
         self._spellchecker = SpellChecker()
 
-    def generate(self, image_path: Path, model_id: str) -> tuple[str, bool, List[str]]:
+    def generate(
+        self,
+        image_path: Path,
+        model_id: str,
+        cancel_callback=None,
+    ) -> tuple[str, bool, List[str]]:
         if BlipProcessor is None or BlipForConditionalGeneration is None or torch is None:
             raise RuntimeError("Captioning dependencies are not installed. Run `uv sync --extra caption`.")
 
@@ -65,7 +70,11 @@ class CaptionGenerator:
         retried = False
 
         for index, prompt in enumerate(CAPTION_RETRY_PROMPTS):
+            if cancel_callback and cancel_callback():
+                raise InterruptedError("Caption run canceled.")
             caption = self._generate_once(processor, model, device, image, prompt=prompt)
+            if cancel_callback and cancel_callback():
+                raise InterruptedError("Caption run canceled.")
             issues = self._caption_issues(caption)
             score = self._caption_score(caption, issues)
             if score > best_score:
@@ -260,7 +269,7 @@ class CaptionManager:
                 raise KeyError(job_id)
             job.cancel_event.set()
             if job.state in {"queued", "starting", "running"}:
-                job.message = "Cancel requested..."
+                job.message = "Stopping after current image..."
             return job.to_response()
 
     def _run_job(self, job_id: str, request: CaptionRequest) -> None:
@@ -280,6 +289,8 @@ class CaptionManager:
             response = self._run_caption_pass(request, self._jobs[job_id].cancel_event, update)
             if self._jobs[job_id].state not in {"completed", "canceled"}:
                 update(state="completed", message="Captioning completed.", result=response)
+        except InterruptedError:
+            update(state="canceled", message="Caption run canceled.")
         except Exception as exc:
             update(state="failed", message=str(exc))
 
@@ -406,6 +417,19 @@ class CaptionManager:
 
                 processed_files += 1
                 relative_path = str(image_path.relative_to(source_path))
+                if cancel_event.is_set():
+                    progress_callback(
+                        state="running",
+                        message="Stopping after current image...",
+                        total_files=total_files,
+                        processed_files=processed_files - 1,
+                        imported_photos=imported_photos,
+                        captions_generated=captions_generated,
+                        phase="scan",
+                        phase_progress=1.0,
+                        current_file=relative_path,
+                    )
+                    continue
                 progress_callback(
                     state="running",
                     message=f"Captioning {relative_path}",
@@ -419,7 +443,39 @@ class CaptionManager:
                 )
                 try:
                     metadata = self.catalog._extract_metadata(image_path)
-                    caption_text, retried, issues = self.generator.generate(image_path, request.model_id)
+                    caption_text, retried, issues = self.generator.generate(
+                        image_path,
+                        request.model_id,
+                        cancel_callback=cancel_event.is_set,
+                    )
+                except InterruptedError:
+                    completed_at = datetime.now(timezone.utc)
+                    connection.execute(
+                        "UPDATE scans SET completed_at = ? WHERE id = ?",
+                        (completed_at.isoformat(), run_id),
+                    )
+                    progress_callback(
+                        state="canceled",
+                        message="Caption run canceled.",
+                        total_files=total_files,
+                        processed_files=processed_files - 1,
+                        imported_photos=imported_photos,
+                        captions_generated=captions_generated,
+                        phase="scan",
+                        phase_progress=1.0,
+                        current_file=relative_path,
+                    )
+                    return CaptionRunResponse(
+                        run_id=run_id,
+                        source_path=str(source_path),
+                        started_at=started_at.isoformat(),
+                        completed_at=completed_at.isoformat(),
+                        processed_files=processed_files - 1,
+                        imported_photos=imported_photos,
+                        captions_generated=captions_generated,
+                        captioner_status="canceled",
+                        warnings=warnings + ["Caption run canceled by user."],
+                    )
                 except Exception as exc:
                     warnings.append(f"Skipped caption for {image_path.name}: {exc}")
                     continue

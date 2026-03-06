@@ -346,7 +346,7 @@ export default function App() {
     try {
       const next = await cancelScan(scanJob.job_id);
       setScanJob(next);
-      setStatus("Cancel requested...");
+      setStatus("Stopping after current image...");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to cancel scan");
     }
@@ -357,7 +357,7 @@ export default function App() {
     try {
       const next = await cancelCaptionJob(captionJob.job_id);
       setCaptionJob(next);
-      setStatus("Cancel requested...");
+      setStatus("Stopping after current image...");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to cancel caption run");
     }

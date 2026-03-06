@@ -149,3 +149,29 @@ def test_caption_generator_accepts_clean_caption_without_retry(monkeypatch):
     assert caption == "a man riding a bike down a city street"
     assert retried is False
     assert issues == []
+
+
+def test_caption_generator_stops_retrying_when_canceled(monkeypatch):
+    from app import captioning
+    from app.captioning import CaptionGenerator
+
+    generator = CaptionGenerator()
+    monkeypatch.setattr(captioning, "load_image", lambda path: Image.new("RGB", (16, 16), color=(0, 0, 0)))
+    monkeypatch.setattr(generator, "_get_model", lambda model_id: (object(), object(), "cpu"))
+    monkeypatch.setattr(
+        generator,
+        "_generate_once",
+        lambda *args, **kwargs: "arafed woman walking down a narrow street with a backpack",
+    )
+
+    cancel_state = {"count": 0}
+
+    def cancel_callback():
+        cancel_state["count"] += 1
+        return cancel_state["count"] > 1
+
+    try:
+        generator.generate(Path("sample.jpg"), "blip-base", cancel_callback=cancel_callback)
+        assert False, "Expected caption generation to be interrupted"
+    except InterruptedError as exc:
+        assert str(exc) == "Caption run canceled."
