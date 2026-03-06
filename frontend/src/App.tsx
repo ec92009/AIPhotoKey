@@ -368,16 +368,13 @@ export default function App() {
       <section className="hero">
         <div>
           <p className="eyebrow">AIPhotoKey</p>
-          <h1>Photo intelligence, rebuilt in Python and TypeScript.</h1>
-          <p className="lede">
-            Switch between structured object detection and a separate captioning workspace without changing
-            how you browse local folders.
-          </p>
+          <h1>Photo intelligence for your library.</h1>
+          <p className="lede">Scan folders, detect objects, and generate captions as the catalog builds.</p>
         </div>
         <div className="hero-meta">
           <span className="badge">{appVersion}</span>
           <span className={`badge badge-${health}`}>API {health}</span>
-          <span className="badge">Detector {summary.detector_status}</span>
+          <span className="badge">Mode {summary.detector_status}</span>
         </div>
       </section>
 
@@ -408,7 +405,7 @@ export default function App() {
                 Browse…
               </button>
             </div>
-            <small className="field-help">Uses the local macOS folder picker and fills the absolute path.</small>
+            <small className="field-help">Pick a local folder to scan.</small>
           </label>
           {mode === "detection" ? (
             <>
@@ -453,10 +450,8 @@ export default function App() {
               </label>
               <label>
                 Caption output
-                <div className="caption-field">Generates one sentence-level caption per photo and stores it in the catalog.</div>
-                <small className="field-help">
-                  Folder browsing stays the same. Detection controls are hidden in this mode.
-                </small>
+                <div className="caption-field">Writes one caption per photo into the catalog.</div>
+                <small className="field-help">This mode focuses on scene descriptions instead of object tags.</small>
               </label>
             </>
           )}
@@ -572,7 +567,7 @@ export default function App() {
             </div>
             <div className="object-list">
               {objects.length === 0 ? (
-                <p className="empty">No detections yet. Install the AI extra or run a scan first.</p>
+                <p className="empty">No detections yet.</p>
               ) : (
                 objects.map((item) => (
                   <button
@@ -600,7 +595,7 @@ export default function App() {
             </p>
             <div className="photo-grid">
               {photos.length === 0 ? (
-                <div className="empty-card">Run a scan to build the catalog.</div>
+                <div className="empty-card">No photos yet.</div>
               ) : (
                 photos.map((photo) => (
                   <article key={photo.id} className="photo-card">
@@ -632,19 +627,14 @@ export default function App() {
         <section className="caption-layout">
           <article className="caption-card">
             <h2>Captioning Workspace</h2>
-            <p>
-              Each photo card shows the generated caption instead of detection tags. This stays separate from the
-              object-detection workflow.
-            </p>
-            <p>
-              The same source-folder browser is reused here, but the model and action are specific to captioning.
-            </p>
+            <p>Each photo card shows a caption instead of detection tags.</p>
+            <p>Choose a caption model, run the folder, and review results as they arrive.</p>
           </article>
           <article className="caption-card">
             <h2>Generated Captions</h2>
             <div className="caption-photo-list">
               {photos.length === 0 ? (
-                <p className="empty">Run a caption pass to generate descriptions for this folder.</p>
+                <p className="empty">No captions yet.</p>
               ) : (
                 photos.map((photo) => (
                   <article key={photo.id} className="caption-photo-card">
