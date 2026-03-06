@@ -26,3 +26,20 @@ Packages/
 Package.pins
 Package.resolved
 *.xcodeproj
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+backend/data/
+weights/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Local app artifacts
+*.sqlite3
+*.db

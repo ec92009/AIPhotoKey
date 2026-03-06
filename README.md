@@ -1,138 +1,83 @@
 # AIPhotoKey
 
-AIPhotoKey is a powerful macOS application that revolutionizes photo organization using AI technology. It helps you scan, analyze, and categorize your photo collection, making it easier to find and manage your images.
+AIPhotoKey now targets a `Python + TypeScript` architecture instead of Swift. The repository contains a FastAPI backend for scanning and indexing photo libraries and a React/Vite frontend for browsing the resulting catalog.
 
-## Features
+## Stack
 
-### Photo Scanning
-- Fast recursive directory scanning
-- Support for multiple image formats:
-  - Standard: JPG, JPEG, PNG, HEIC, HEIF, GIF, TIFF, TIF, BMP
-  - RAW: RAW, CR2, CR3, NEF, ARW, DNG, ORF, RW2, PEF, SRW
-  - Professional: PSD, PSB
-- Real-time scanning progress and status updates
-- Pause and resume scanning capability
-- Automatic handling of large photo collections (>3000 photos)
+- `backend/`: FastAPI, SQLite, Pillow
+- `frontend/`: React, TypeScript, Vite
+- `AIPhotoKey/`, `Sources/`, `AIPhotoKey.xcodeproj`: legacy Swift implementation kept as reference while the new stack is built out
 
-### AI Analysis
-- Multiple AI model selection options
-- Adjustable confidence threshold (0-100%)
-- Intelligent photo categorization
-- Fast processing with batch operations
-- Preview thumbnails with confidence scores
-- Detailed image metadata display
+## Current Capabilities
 
-### User Interface
-- Modern SwiftUI interface with native macOS look and feel
-- Interactive controls for scanning and analysis
-- Real-time results display with thumbnails
-- Status line for operation feedback
-- Easy directory selection with native folder picker
-- Clear database option for fresh starts
-- Interactive photo detail view:
-  - High-quality 512x512 image preview
-  - Click anywhere to dismiss
-  - Integer-based dimension display
-  - Confidence percentage
-  - File name
+- Recursive photo-library scans into SQLite
+- Standard image support: `jpg`, `jpeg`, `png`, `heic`, `heif`, `gif`, `tiff`, `tif`, `bmp`, `webp`
+- RAW image support: `raw`, `cr2`, `cr3`, `nef`, `arw`, `dng`, `orf`, `rw2`, `pef`, `srw`, `raf`, `x3f`
+- Multiple model families exposed in the UI and API: `YOLOv8`, `YOLO11`, and `YOLO26` in `n/s/m/l/x` sizes
+- Confidence-threshold control
+- Object summary view grouped from detections
+- Photo grid with on-demand thumbnails
+- Optional Ultralytics integration when installed
 
-### Session Management
-- Persistent session preferences across app launches:
-  - Last used photos source folder
-  - Selected AI model
-  - Confidence threshold setting
-- Preferences automatically saved using macOS UserDefaults
-- Easy preference management via defaults command-line tool
+The backend works without AI dependencies. In that mode it still indexes photos and metadata but records no detections. Installing the optional AI extra enables YOLO-based tagging.
 
-## Architecture
+## Quick Start
 
-AIPhotoKey follows the MVVM (Model-View-ViewModel) architecture pattern for clean separation of concerns:
-
-### Project Structure
-```
-Sources/
-├── Models/         # Data models and business logic
-├── Views/          # UI components and layouts
-└── ViewModels/     # State management and view logic
-```
-
-### Components
-- **Models**: Handle data structures and business logic
-- **Views**: Pure UI components with minimal logic
-- **ViewModels**: Manage state and business operations
-
-## Getting Started
-
-### Prerequisites
-- macOS 13.0 or later
-- Xcode 14.0 or later
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) for project generation
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/ec92009/AIPhotoKey.git
-   cd AIPhotoKey
-   ```
-
-2. Generate the Xcode project:
-   ```bash
-   xcodegen generate
-   ```
-
-3. Open the generated Xcode project:
-   ```bash
-   open AIPhotoKey.xcodeproj
-   ```
-
-### Managing Preferences
-
-You can view or modify app preferences using the defaults command:
+### Backend
 
 ```bash
-# View all preferences
-defaults read com.aiphotokey.AIPhotoKey
-
-# View photos source folder
-defaults read com.aiphotokey.AIPhotoKey photosSourceFolder
-
-# Set photos source folder
-defaults write com.aiphotokey.AIPhotoKey photosSourceFolder "/path/to/photos"
-
-# Reset all preferences
-defaults delete com.aiphotokey.AIPhotoKey
+cd backend
+uv sync --extra dev
+uv run uvicorn app.main:app --reload
 ```
 
-## Current State
+The API starts on `http://127.0.0.1:8000`.
 
-The application is fully functional with the following key features implemented:
-- Complete photo scanning system with pause/resume capability
-- AI model integration with adjustable confidence settings
-- Persistent session preferences
-- Modern UI with thumbnail previews and detailed image information
-- Real-time scanning status updates
-- Comprehensive error handling and user feedback
+### Frontend
 
-## Next Steps
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Planned improvements include:
-- Additional AI models for enhanced photo analysis
-- Batch processing optimization
-- Advanced filtering and search capabilities
-- Export functionality for analysis results
-- Integration with Photos.app and other image management tools
+The app starts on `http://127.0.0.1:5173` and proxies API requests to the backend.
 
-## Contributing
+## Optional AI Setup
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Install the backend with the `ai` extra:
 
-## License
+```bash
+cd backend
+uv sync --extra dev --extra ai
+```
 
-This project is private and proprietary. All rights reserved.
+This enables the Ultralytics detector. If the dependency is absent, scans complete with photo metadata only.
 
-## Acknowledgments
+## API Overview
 
-- Built with SwiftUI
-- Uses XcodeGen for project management
-- Implements native macOS design patterns
+- `GET /api/health`
+- `GET /api/models`
+- `GET /api/summary`
+- `GET /api/objects`
+- `GET /api/photos`
+- `GET /api/photos/{photo_id}/thumbnail`
+- `POST /api/scans`
+- `DELETE /api/catalog`
+
+## Testing
+
+```bash
+cd backend
+uv run pytest
+
+cd ../frontend
+npm run build
+```
+
+## Notes
+
+- The catalog database defaults to `backend/data/catalog.db`.
+- Downloaded Ultralytics weights live in `weights/`.
+- The new app accepts direct filesystem paths such as `~/Pictures`.
+- Legacy Swift sources remain in the repo for behavior reference only and are no longer the active implementation path.
