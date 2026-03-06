@@ -56,6 +56,7 @@ export type ScanResponse = {
   scanned_files: number;
   imported_photos: number;
   detections: number;
+  captions_generated: number;
   detector_status: string;
   warnings: string[];
 };
@@ -65,12 +66,14 @@ export type ScanJob = {
   state: "queued" | "starting" | "running" | "completed" | "failed" | "canceled";
   source_path: string;
   model_id: string;
+  caption_model_id: string | null;
   min_confidence: number;
   message: string;
   total_files: number;
   scanned_files: number;
   imported_photos: number;
   detections: number;
+  captions_generated: number;
   progress: number;
   phase: string;
   phase_progress: number;

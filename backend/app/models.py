@@ -69,6 +69,7 @@ SUPPORTED_CAPTION_MODELS = [
 class ScanRequest(BaseModel):
     source_path: str = Field(..., min_length=1)
     model_id: str = "yolov8n"
+    caption_model_id: Optional[str] = None
     min_confidence: float = Field(0.5, ge=0.0, le=1.0)
     clear_existing: bool = True
 
@@ -128,6 +129,7 @@ class ScanResponse(BaseModel):
     scanned_files: int
     imported_photos: int
     detections: int
+    captions_generated: int
     detector_status: str
     warnings: List[str]
 
@@ -137,12 +139,14 @@ class ScanJobResponse(BaseModel):
     state: str
     source_path: str
     model_id: str
+    caption_model_id: Optional[str]
     min_confidence: float
     message: str
     total_files: int
     scanned_files: int
     imported_photos: int
     detections: int
+    captions_generated: int
     progress: float
     phase: str
     phase_progress: float
@@ -156,6 +160,7 @@ class ScanRecord(BaseModel):
     id: int
     source_path: str
     model_id: str
+    caption_model_id: Optional[str]
     min_confidence: float
     detector_status: str
     started_at: datetime

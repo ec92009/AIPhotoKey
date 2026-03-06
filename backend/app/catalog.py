@@ -75,6 +75,11 @@ class CatalogService:
                 )
 
         detector = create_detector(request.model_id, progress_callback=on_model_progress)
+        caption_generator = None
+        if request.caption_model_id:
+            from .captioning import CaptionGenerator
+
+            caption_generator = CaptionGenerator()
 
         if progress_callback:
             progress_callback(
@@ -88,6 +93,51 @@ class CatalogService:
                 phase_progress=1.0,
                 current_file=None,
             )
+
+        if caption_generator and request.caption_model_id:
+            if progress_callback:
+                progress_callback(
+                    state="running",
+                    message="Downloading/loading caption model. First run can be about 1 GB and may take a while...",
+                    total_files=total_files,
+                    scanned_files=0,
+                    imported_photos=0,
+                    detections=0,
+                    captions_generated=0,
+                    phase="model",
+                    phase_progress=0.05,
+                    current_file=None,
+                )
+            caption_generator.prepare_model(
+                request.caption_model_id,
+                progress_callback=lambda message, amount: progress_callback(
+                    state="running",
+                    message=message,
+                    total_files=total_files,
+                    scanned_files=0,
+                    imported_photos=0,
+                    detections=0,
+                    captions_generated=0,
+                    phase="model",
+                    phase_progress=amount,
+                    current_file=None,
+                )
+                if progress_callback
+                else None,
+            )
+            if progress_callback:
+                progress_callback(
+                    state="running",
+                    message="Caption model ready. Starting file-by-file scan...",
+                    total_files=total_files,
+                    scanned_files=0,
+                    imported_photos=0,
+                    detections=0,
+                    captions_generated=0,
+                    phase="scan",
+                    phase_progress=1.0,
+                    current_file=None,
+                )
 
         with get_connection(self.database_path) as connection:
             if request.clear_existing:
@@ -104,7 +154,7 @@ class CatalogService:
                     str(source_path),
                     request.model_id,
                     request.min_confidence,
-                    detector.status,
+                    "unified" if request.caption_model_id else detector.status,
                     started_at.isoformat(),
                 ),
             )
@@ -113,6 +163,7 @@ class CatalogService:
             scanned_files = 0
             imported_photos = 0
             detection_count = 0
+            caption_count = 0
 
             for image_path in image_paths:
                 if cancel_event and cancel_event.is_set():
@@ -129,6 +180,7 @@ class CatalogService:
                             scanned_files=scanned_files,
                             imported_photos=imported_photos,
                             detections=detection_count,
+                            captions_generated=caption_count,
                             phase="scan",
                             phase_progress=1.0,
                             current_file=str(image_path.relative_to(source_path)) if scanned_files < total_files else None,
@@ -141,7 +193,8 @@ class CatalogService:
                         scanned_files=scanned_files,
                         imported_photos=imported_photos,
                         detections=detection_count,
-                        detector_status=detector.status,
+                        captions_generated=caption_count,
+                        detector_status="unified" if request.caption_model_id else detector.status,
                         warnings=warnings + ["Scan canceled by user."],
                     )
 
@@ -155,6 +208,7 @@ class CatalogService:
                         scanned_files=scanned_files,
                         imported_photos=imported_photos,
                         detections=detection_count,
+                        captions_generated=caption_count,
                         phase="scan",
                         phase_progress=1.0,
                         current_file=relative_path,
@@ -190,6 +244,72 @@ class CatalogService:
                     detections = []
                 detection_count += len(detections)
                 self._insert_detections(connection, photo_id, detections)
+
+                if caption_generator and request.caption_model_id:
+                    try:
+                        from .captioning import extract_caption_keywords
+
+                        caption_text, retried, issues = caption_generator.generate(
+                            image_path,
+                            request.caption_model_id,
+                            cancel_callback=cancel_event.is_set if cancel_event else None,
+                        )
+                        connection.execute(
+                            """
+                            INSERT INTO captions (photo_id, model_id, caption, source, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (
+                                photo_id,
+                                request.caption_model_id,
+                                caption_text,
+                                "scan-caption",
+                                datetime.now(timezone.utc).isoformat(),
+                            ),
+                        )
+                        caption_keywords = extract_caption_keywords(caption_text)
+                        detection_count += len(caption_keywords)
+                        self._insert_detections(connection, photo_id, caption_keywords)
+                        caption_count += 1
+                        if retried:
+                            warnings.append(
+                                f"Retried caption for {image_path.name} during unified scan."
+                                if not issues
+                                else f"Retried caption for {image_path.name}; kept best available text."
+                            )
+                    except InterruptedError:
+                        completed_at = datetime.now(timezone.utc)
+                        connection.execute(
+                            "UPDATE scans SET completed_at = ? WHERE id = ?",
+                            (completed_at.isoformat(), scan_id),
+                        )
+                        if progress_callback:
+                            progress_callback(
+                                state="canceled",
+                                message="Scan canceled.",
+                                total_files=total_files,
+                                scanned_files=scanned_files - 1,
+                                imported_photos=imported_photos - 1,
+                                detections=detection_count,
+                                captions_generated=caption_count,
+                                phase="scan",
+                                phase_progress=1.0,
+                                current_file=relative_path,
+                            )
+                        return ScanResponse(
+                            scan_id=scan_id,
+                            source_path=str(source_path),
+                            started_at=started_at.isoformat(),
+                            completed_at=completed_at.isoformat(),
+                            scanned_files=scanned_files - 1,
+                            imported_photos=imported_photos - 1,
+                            detections=detection_count,
+                            captions_generated=caption_count,
+                            detector_status="unified",
+                            warnings=warnings + ["Scan canceled by user."],
+                        )
+                    except Exception as exc:
+                        warnings.append(f"Skipped caption for {image_path.name}: {exc}")
                 connection.commit()
                 if progress_callback:
                     progress_callback(
@@ -199,6 +319,7 @@ class CatalogService:
                         scanned_files=scanned_files,
                         imported_photos=imported_photos,
                         detections=detection_count,
+                        captions_generated=caption_count,
                         phase="scan",
                         phase_progress=1.0,
                         current_file=relative_path,
@@ -221,7 +342,8 @@ class CatalogService:
             scanned_files=scanned_files,
             imported_photos=imported_photos,
             detections=detection_count,
-            detector_status=detector.status,
+            captions_generated=caption_count,
+            detector_status="unified" if request.caption_model_id else detector.status,
             warnings=warnings,
         )
         if progress_callback:
@@ -232,6 +354,7 @@ class CatalogService:
                 scanned_files=scanned_files,
                 imported_photos=imported_photos,
                 detections=detection_count,
+                captions_generated=caption_count,
                 phase="scan",
                 phase_progress=1.0,
                 current_file=None,
@@ -401,6 +524,7 @@ class ScanJob:
     job_id: str
     source_path: str
     model_id: str
+    caption_model_id: Optional[str]
     min_confidence: float
     state: str = "queued"
     message: str = "Queued"
@@ -408,6 +532,7 @@ class ScanJob:
     scanned_files: int = 0
     imported_photos: int = 0
     detections: int = 0
+    captions_generated: int = 0
     progress: float = 0.0
     phase: str = "scan"
     phase_progress: float = 0.0
@@ -423,12 +548,14 @@ class ScanJob:
             state=self.state,
             source_path=self.source_path,
             model_id=self.model_id,
+            caption_model_id=self.caption_model_id,
             min_confidence=self.min_confidence,
             message=self.message,
             total_files=self.total_files,
             scanned_files=self.scanned_files,
             imported_photos=self.imported_photos,
             detections=self.detections,
+            captions_generated=self.captions_generated,
             progress=self.progress,
             phase=self.phase,
             phase_progress=self.phase_progress,
@@ -450,6 +577,7 @@ class ScanManager:
             job_id=str(uuid4()),
             source_path=request.source_path,
             model_id=request.model_id,
+            caption_model_id=request.caption_model_id,
             min_confidence=request.min_confidence,
             state="starting",
             message="Preparing scan...",

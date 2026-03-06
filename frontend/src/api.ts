@@ -45,6 +45,7 @@ export async function fetchPhotos(objectLabel?: string): Promise<Photo[]> {
 export async function runScan(payload: {
   source_path: string;
   model_id: string;
+  caption_model_id: string | null;
   min_confidence: number;
   clear_existing: boolean;
 }): Promise<ScanJob> {
