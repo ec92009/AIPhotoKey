@@ -12,6 +12,7 @@ from spellchecker import SpellChecker
 
 from .catalog import CatalogService
 from .database import get_connection
+from .detectors.base import Detection
 from .image_loader import load_image
 from .models import CaptionJobResponse, CaptionRequest, CaptionRunResponse, SUPPORTED_CAPTION_MODELS
 
@@ -45,6 +46,104 @@ ALLOWED_CAPTION_TERMS = {
     "streetlights",
     "waterfront",
 }
+ARTICLE_WORDS = {"a", "an", "the"}
+BOUNDARY_WORDS = {
+    "and",
+    "as",
+    "at",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "near",
+    "of",
+    "on",
+    "to",
+    "under",
+    "with",
+}
+KEYWORD_SKIP_WORDS = {
+    "black",
+    "blue",
+    "bright",
+    "brown",
+    "city",
+    "close",
+    "dark",
+    "empty",
+    "green",
+    "large",
+    "little",
+    "narrow",
+    "old",
+    "open",
+    "red",
+    "small",
+    "sunny",
+    "tall",
+    "urban",
+    "white",
+    "wooden",
+    "young",
+}
+IRREGULAR_SINGULARS = {
+    "children": "child",
+    "men": "man",
+    "people": "person",
+    "women": "woman",
+}
+
+
+def _normalize_keyword(word: str) -> str:
+    if word in IRREGULAR_SINGULARS:
+        return IRREGULAR_SINGULARS[word]
+    if word.endswith("ies") and len(word) > 4:
+        return f"{word[:-3]}y"
+    if word.endswith(("ses", "xes", "zes", "ches", "shes")) and len(word) > 4:
+        return word[:-2]
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
+
+
+def extract_caption_keywords(caption: str) -> List[Detection]:
+    words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", caption.lower()) if token]
+    keywords: List[Detection] = []
+    seen: set[str] = set()
+
+    def add_keyword(candidate: str) -> None:
+        normalized = _normalize_keyword(candidate)
+        if (
+            len(normalized) < 3
+            or normalized in seen
+            or normalized in KEYWORD_SKIP_WORDS
+            or normalized.endswith("ing")
+        ):
+            return
+        seen.add(normalized)
+        keywords.append(Detection(label=normalized, confidence=0.55, source="caption-keyword"))
+
+    index = 0
+    while index < len(words):
+        token = words[index]
+        if token in ARTICLE_WORDS or token in BOUNDARY_WORDS:
+            candidates: List[str] = []
+            probe = index + 1
+            while probe < len(words):
+                next_word = words[probe]
+                if next_word in ARTICLE_WORDS or next_word in BOUNDARY_WORDS or next_word.endswith("ing"):
+                    break
+                if next_word not in KEYWORD_SKIP_WORDS:
+                    candidates.append(next_word)
+                probe += 1
+            if candidates:
+                add_keyword(candidates[-1])
+            index = probe
+            continue
+        index += 1
+
+    return keywords
 
 
 class CaptionGenerator:
@@ -520,6 +619,7 @@ class CaptionManager:
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )
+                self.catalog._insert_detections(connection, photo_id, extract_caption_keywords(caption_text))
                 captions_generated += 1
                 connection.commit()
                 progress_callback(

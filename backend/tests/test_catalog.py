@@ -110,6 +110,28 @@ def test_raw_image_loader_uses_rawpy(monkeypatch, tmp_path: Path):
     assert image.size == (2, 2)
 
 
+def test_raw_image_loader_falls_back_to_sips(monkeypatch, tmp_path: Path):
+    from app import image_loader
+
+    class BrokenRawPy:
+        @staticmethod
+        def imread(path: str):
+            raise ValueError(b"Unsupported file format or not RAW file")
+
+    monkeypatch.setattr(image_loader, "rawpy", BrokenRawPy())
+    monkeypatch.setattr(image_loader.shutil, "which", lambda name: "/usr/bin/sips")
+    monkeypatch.setattr(
+        image_loader,
+        "_load_raw_with_sips",
+        lambda path: Image.new("RGB", (12, 8), color=(10, 20, 30)),
+    )
+
+    image_path = tmp_path / "sample.dng"
+    image_path.write_bytes(b"fake-raw")
+    image = image_loader.load_image(image_path)
+    assert image.size == (12, 8)
+
+
 def test_caption_generator_retries_for_broken_english(monkeypatch):
     from app import captioning
     from app.captioning import CaptionGenerator
@@ -175,3 +197,11 @@ def test_caption_generator_stops_retrying_when_canceled(monkeypatch):
         assert False, "Expected caption generation to be interrupted"
     except InterruptedError as exc:
         assert str(exc) == "Caption run canceled."
+
+
+def test_extract_caption_keywords_uses_nouns_from_caption():
+    from app.captioning import extract_caption_keywords
+
+    keywords = extract_caption_keywords("a woman holding a book on a narrow street")
+
+    assert [item.label for item in keywords] == ["woman", "book", "street"]
