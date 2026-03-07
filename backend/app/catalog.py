@@ -254,6 +254,23 @@ class CatalogService:
                             request.caption_model_id,
                             cancel_callback=cancel_event.is_set if cancel_event else None,
                         )
+                        if issues:
+                            warnings.append(f"Skipped caption for {image_path.name}: {'; '.join(issues)}")
+                            connection.commit()
+                            if progress_callback:
+                                progress_callback(
+                                    state="running",
+                                    message=f"Processed {relative_path}",
+                                    total_files=total_files,
+                                    scanned_files=scanned_files,
+                                    imported_photos=imported_photos,
+                                    detections=detection_count,
+                                    captions_generated=caption_count,
+                                    phase="scan",
+                                    phase_progress=1.0,
+                                    current_file=relative_path,
+                                )
+                            continue
                         connection.execute(
                             """
                             INSERT INTO captions (photo_id, model_id, caption, source, created_at)
@@ -272,11 +289,7 @@ class CatalogService:
                         self._insert_detections(connection, photo_id, caption_keywords)
                         caption_count += 1
                         if retried:
-                            warnings.append(
-                                f"Retried caption for {image_path.name} during unified scan."
-                                if not issues
-                                else f"Retried caption for {image_path.name}; kept best available text."
-                            )
+                            warnings.append(f"Retried caption for {image_path.name} during unified scan.")
                     except InterruptedError:
                         completed_at = datetime.now(timezone.utc)
                         connection.execute(

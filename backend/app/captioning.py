@@ -34,6 +34,15 @@ CAPTION_RETRY_PROMPTS = [
     "a photograph of",
     "a photo showing",
 ]
+REDUNDANT_PREFIXES = (
+    "a photo of ",
+    "a picture of ",
+    "a photo showing ",
+    "an image of ",
+    "an image showing ",
+    "a photograph of ",
+    "a photograph showing ",
+)
 ALLOWED_CAPTION_TERMS = {
     "backlit",
     "backpack",
@@ -171,7 +180,8 @@ class CaptionGenerator:
         for index, prompt in enumerate(CAPTION_RETRY_PROMPTS):
             if cancel_callback and cancel_callback():
                 raise InterruptedError("Caption run canceled.")
-            caption = self._generate_once(processor, model, device, image, prompt=prompt)
+            caption = self._generate_once(processor, model, device, image, prompt=prompt, retry_index=index)
+            caption = self._normalize_caption(caption)
             if cancel_callback and cancel_callback():
                 raise InterruptedError("Caption run canceled.")
             issues = self._caption_issues(caption)
@@ -186,20 +196,40 @@ class CaptionGenerator:
 
         return best_caption, retried, best_issues
 
-    def _generate_once(self, processor, model, device: str, image, prompt: Optional[str]) -> str:
+    def _generate_once(self, processor, model, device: str, image, prompt: Optional[str], retry_index: int) -> str:
         if prompt:
             inputs = processor(images=image, text=prompt, return_tensors="pt")
         else:
             inputs = processor(images=image, return_tensors="pt")
         if device != "cpu":
             inputs = {key: value.to(device) for key, value in inputs.items()}
+        generation_kwargs = {
+            "max_new_tokens": 48 if retry_index == 0 else 32,
+            "num_beams": 5 if retry_index == 0 else 6,
+            "repetition_penalty": 1.15 if retry_index == 0 else 1.35,
+            "no_repeat_ngram_size": 2 if retry_index == 0 else 3,
+        }
         output = model.generate(
             **inputs,
-            max_new_tokens=48,
-            num_beams=5,
-            repetition_penalty=1.15,
+            **generation_kwargs,
         )
         return processor.decode(output[0], skip_special_tokens=True).strip()
+
+    def _normalize_caption(self, caption: str) -> str:
+        text = " ".join(caption.split()).strip()
+        lowered = text.lower()
+        for prefix in REDUNDANT_PREFIXES:
+            if lowered.startswith(prefix):
+                text = text[len(prefix):].strip()
+                lowered = text.lower()
+                break
+        if text:
+            text = text[0].upper() + text[1:]
+        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+        text = text.rstrip(",;:- ")
+        if text and text[-1] not in ".!?":
+            text = f"{text}."
+        return text
 
     def _caption_score(self, caption: str, issues: List[str]) -> int:
         words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", caption.lower()) if token]
@@ -212,6 +242,7 @@ class CaptionGenerator:
         text = " ".join(caption.split())
         issues: List[str] = []
         words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", text.lower()) if token]
+        starts_with_capital = text[:1].isupper()
 
         if not text:
             return ["caption is empty"]
@@ -223,12 +254,17 @@ class CaptionGenerator:
             issues.append("caption is too short")
         if len(words) > 24:
             issues.append("caption is too long")
-        if not any(word in {"a", "an", "the"} for word in words[:2]):
+        if words and not any(word in {"a", "an", "the"} for word in words[:2]) and not starts_with_capital:
             issues.append("caption does not start like a natural phrase")
         has_connector = any(word in {"with", "in", "on", "at", "by", "near", "under"} for word in words)
         has_action = any(word.endswith("ing") for word in words)
         if not has_connector and not has_action:
             issues.append("caption lacks connective or action words")
+        repeated_words = self._repeated_words(words)
+        if repeated_words:
+            issues.append(f"repeated words: {', '.join(repeated_words[:3])}")
+        if self._has_repeated_bigram(words):
+            issues.append("repeated phrase pattern")
 
         misspelled_words = self._misspelled_words(words)
         if misspelled_words:
@@ -245,6 +281,25 @@ class CaptionGenerator:
             return []
         unknown = self._spellchecker.unknown(filtered)
         return sorted(unknown)
+
+    def _repeated_words(self, words: List[str]) -> List[str]:
+        counts: Dict[str, int] = {}
+        for word in words:
+            if word in ARTICLE_WORDS or word in BOUNDARY_WORDS:
+                continue
+            counts[word] = counts.get(word, 0) + 1
+        return sorted([word for word, count in counts.items() if count >= 3])
+
+    def _has_repeated_bigram(self, words: List[str]) -> bool:
+        if len(words) < 6:
+            return False
+        seen: Dict[tuple[str, str], int] = {}
+        for index in range(len(words) - 1):
+            pair = (words[index], words[index + 1])
+            seen[pair] = seen.get(pair, 0) + 1
+            if seen[pair] >= 3:
+                return True
+        return False
 
     def prepare_model(self, model_id: str, progress_callback=None) -> bool:
         if BlipProcessor is None or BlipForConditionalGeneration is None or torch is None:
@@ -578,15 +633,11 @@ class CaptionManager:
                 except Exception as exc:
                     warnings.append(f"Skipped caption for {image_path.name}: {exc}")
                     continue
+                if issues:
+                    warnings.append(f"Skipped caption for {image_path.name}: {'; '.join(issues)}")
+                    continue
                 if retried:
-                    if issues:
-                        warnings.append(
-                            f"Retried caption for {image_path.name}; kept best available text after quality check."
-                        )
-                    else:
-                        warnings.append(
-                            f"Retried caption for {image_path.name} after English quality check."
-                        )
+                    warnings.append(f"Retried caption for {image_path.name} after English quality check.")
 
                 photo_cursor = connection.execute(
                     """

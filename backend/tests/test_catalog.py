@@ -148,7 +148,7 @@ def test_caption_generator_retries_for_broken_english(monkeypatch):
 
     caption, retried, issues = generator.generate(Path("sample.jpg"), "blip-base")
 
-    assert caption == "a woman walking down a narrow street with a backpack"
+    assert caption == "A woman walking down a narrow street with a backpack."
     assert retried is True
     assert issues == []
 
@@ -163,12 +163,12 @@ def test_caption_generator_accepts_clean_caption_without_retry(monkeypatch):
     monkeypatch.setattr(
         generator,
         "_generate_once",
-        lambda *args, **kwargs: "a man riding a bike down a city street",
+        lambda *args, **kwargs: "a photo of a man riding a bike down a city street",
     )
 
     caption, retried, issues = generator.generate(Path("sample.jpg"), "blip-base")
 
-    assert caption == "a man riding a bike down a city street"
+    assert caption == "A man riding a bike down a city street."
     assert retried is False
     assert issues == []
 
@@ -205,3 +205,23 @@ def test_extract_caption_keywords_uses_nouns_from_caption():
     keywords = extract_caption_keywords("a woman holding a book on a narrow street")
 
     assert [item.label for item in keywords] == ["woman", "book", "street"]
+
+
+def test_caption_generator_flags_repetitive_gibberish(monkeypatch):
+    from app import captioning
+    from app.captioning import CaptionGenerator
+
+    generator = CaptionGenerator()
+    monkeypatch.setattr(captioning, "load_image", lambda path: Image.new("RGB", (16, 16), color=(0, 0, 0)))
+    monkeypatch.setattr(generator, "_get_model", lambda model_id: (object(), object(), "cpu"))
+    monkeypatch.setattr(
+        generator,
+        "_generate_once",
+        lambda *args, **kwargs: "a photo showing the miter miter miter miter miter miter",
+    )
+
+    caption, retried, issues = generator.generate(Path("sample.jpg"), "blip-base")
+
+    assert caption == "The miter miter miter miter miter miter."
+    assert retried is True
+    assert any("repeated words" in issue for issue in issues)
