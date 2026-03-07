@@ -43,6 +43,14 @@ REDUNDANT_PREFIXES = (
     "a photograph of ",
     "a photograph showing ",
 )
+GENERIC_OPENING_PATTERNS = (
+    (re.compile(r"^this is a picture of\s+", re.IGNORECASE), ""),
+    (re.compile(r"^this is an image of\s+", re.IGNORECASE), ""),
+    (re.compile(r"^this is a photo of\s+", re.IGNORECASE), ""),
+    (re.compile(r"^this is a photograph of\s+", re.IGNORECASE), ""),
+    (re.compile(r"^there is\s+", re.IGNORECASE), ""),
+    (re.compile(r"^there are\s+", re.IGNORECASE), ""),
+)
 ALLOWED_CAPTION_TERMS = {
     "backlit",
     "backpack",
@@ -216,20 +224,7 @@ class CaptionGenerator:
         return processor.decode(output[0], skip_special_tokens=True).strip()
 
     def _normalize_caption(self, caption: str) -> str:
-        text = " ".join(caption.split()).strip()
-        lowered = text.lower()
-        for prefix in REDUNDANT_PREFIXES:
-            if lowered.startswith(prefix):
-                text = text[len(prefix):].strip()
-                lowered = text.lower()
-                break
-        if text:
-            text = text[0].upper() + text[1:]
-        text = re.sub(r"\s+([,.;:!?])", r"\1", text)
-        text = text.rstrip(",;:- ")
-        if text and text[-1] not in ".!?":
-            text = f"{text}."
-        return text
+        return normalize_caption_text(caption)
 
     def _caption_score(self, caption: str, issues: List[str]) -> int:
         words = [token for token in re.findall(r"[A-Za-z][A-Za-z'-]*", caption.lower()) if token]
@@ -344,6 +339,51 @@ class CaptionGenerator:
             payload = (processor, model, device)
             self._cache[model_id] = payload
             return payload
+
+
+def normalize_caption_text(caption: str) -> str:
+    text = " ".join(caption.split()).strip()
+    lowered = text.lower()
+    for prefix in REDUNDANT_PREFIXES:
+        if lowered.startswith(prefix):
+            text = text[len(prefix):].strip()
+            lowered = text.lower()
+            break
+
+    for pattern, replacement in GENERIC_OPENING_PATTERNS:
+        next_text = pattern.sub(replacement, text, count=1).strip()
+        if next_text != text:
+            text = next_text
+            break
+
+    text = re.sub(r"\bthat is\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bthat are\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bwho is\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bwhich is\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s{2,}", " ", text).strip()
+
+    lowered = text.lower()
+    if lowered.startswith("many people "):
+        text = f"People {text[12:]}"
+    elif lowered.startswith("group of people "):
+        text = f"A group of people {text[16:]}"
+    elif lowered.startswith("people that "):
+        text = f"People {text[12:]}"
+    elif lowered.startswith("people are "):
+        text = f"People {text[11:]}"
+    elif lowered.startswith("two ") or lowered.startswith("three "):
+        pass
+    elif text and text.split(" ", 1)[0].lower() not in ARTICLE_WORDS and text[:1].islower():
+        text = f"A {text}"
+
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = text.rstrip(",;:- ")
+    text = text.strip()
+    if text:
+        text = text[0].upper() + text[1:]
+    if text and text[-1] not in ".!?":
+        text = f"{text}."
+    return text
 
 
 @dataclass

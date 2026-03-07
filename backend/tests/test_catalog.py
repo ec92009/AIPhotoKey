@@ -225,3 +225,20 @@ def test_caption_generator_flags_repetitive_gibberish(monkeypatch):
     assert caption == "The miter miter miter miter miter miter."
     assert retried is True
     assert any("repeated words" in issue for issue in issues)
+
+
+def test_normalize_caption_text_rewrites_generic_openings():
+    from app.captioning import normalize_caption_text
+
+    assert (
+        normalize_caption_text("There is a woman walking down the sidewalk next to a body of water.")
+        == "A woman walking down the sidewalk next to a body of water."
+    )
+    assert (
+        normalize_caption_text("This is a picture of a piece of art that is hanging on a wall.")
+        == "A piece of art hanging on a wall."
+    )
+    assert (
+        normalize_caption_text("There are many people sitting on the side of a pier next to a body of water.")
+        == "People sitting on the side of a pier next to a body of water."
+    )
